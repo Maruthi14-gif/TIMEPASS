@@ -10,6 +10,7 @@ import { clerkMiddleware } from '@clerk/express';
 
 import User from "./models/User.js";
 import { connectDB } from "./lib/db.js";
+import job from "./lib/cron.js";
 
 
 const app = express();
@@ -32,9 +33,11 @@ if (fs.existsSync(publicDir)) {
 
     app.use(express.static(publicDir));
 
-    app.get("/{*any}", (req,res) => {
-        res.sendFile(path.join(publicDir, "index.html") , (err) => next(err));
+    app.get("/{*any}", (req, res, next) => {
+    res.sendFile(path.join(publicDir, "index.html"), (err) => {
+        if (err) next(err);
     });
+});
 };
 
 app.listen (PORT, () => {
