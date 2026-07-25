@@ -12,6 +12,7 @@ import User from "./models/User.js";
 import { connectDB } from "./lib/db.js";
 import job from "./lib/cron.js";
 import clerkWebhook from "./webhooks/clerk.webhook.js";
+import authRoutes from "./routes/auth.route.js";
 
 const app = express();
 
@@ -30,6 +31,10 @@ app.use(clerkMiddleware());
 app.get("/health", (req,res) => {
     res.status(200).json({ok:true});
 });
+
+app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes);
+
 
 //if the public directory exists, serve the static files and handle all other routes by sending index.html
 if (fs.existsSync(publicDir)) {
