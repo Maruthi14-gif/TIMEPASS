@@ -1,134 +1,40 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "./styles/theme-presets.css";
+@import "@heroui/styles";
+@import "./styles/heroui-theme-presets.css";
 
-/* Dark mode comes from a class on <html>, so the theme switcher can override
-   the OS preference. This replaces the HeroUI-specific variant that used to
-   live here — that one existed to work around HeroUI's prefers-color-scheme
-   fallback, which no longer applies now that HeroUI is gone. Using :where()
-   rather than :is() so the variant contributes no specificity of its own. */
-@custom-variant dark (&:where(.dark, .dark *));
+/* HeroUI's dark fallback uses prefers-color-scheme but forgot [data-theme="light"], so OS dark +
+   app light still applied dark: utilities. Re-define so explicit light theme wins system dark. */
+@custom-variant dark {
+  &:is(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
 
-/* Maps the raw --token variables onto Tailwind's colour scale, which is what
-   turns them into bg-background, text-muted-foreground, border-border, etc. */
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-/* Fallback tokens, used when <html> carries no data-theme-preset. Neutral
-   shadcn defaults — the ten presets in styles/theme-presets.css override
-   these, and win because their selectors are qualified with `html`. */
-:root {
-  --radius: 0.65rem;
-
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.546 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.33);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.584 0.216 24.5);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.556 0 0);
-
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.922 0 0);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+    &::before,
+    &::after {
+      @slot;
+    }
   }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html,
-  body,
-  #root {
-    height: 100%;
+
+  @media (prefers-color-scheme: dark) {
+    &:not(
+        :is(
+          .dark,
+          .dark *,
+          [data-theme="dark"],
+          [data-theme="dark"] *,
+          [data-theme="light"],
+          [data-theme="light"] *
+        )
+      )
+      & {
+      @slot;
+
+      &::before,
+      &::after {
+        @slot;
+      }
+    }
   }
 }
-
-/* ── your animations, carried over ──────────────────────────────────────── */
 
 @keyframes auth-float-y {
   0%,
@@ -146,39 +52,5 @@
   }
   100% {
     transform: translateX(100%);
-  }
-}
-
-/* ── chat-specific ──────────────────────────────────────────────────────── */
-
-/* Message list scrollbar: thin, and doesn't reflow the layout when it appears. */
-.scroll-slim {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-.scroll-slim::-webkit-scrollbar {
-  width: 8px;
-}
-.scroll-slim::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 9999px;
-}
-.scroll-slim::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-@keyframes typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
-  30% { transform: translateY(-4px); opacity: 1; }
-}
-.typing-dot {
-  animation: typing-bounce 1.2s infinite ease-in-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .typing-dot,
-  [class*="auth-float"],
-  [class*="auth-shimmer"] {
-    animation: none;
   }
 }
