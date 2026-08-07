@@ -24,17 +24,23 @@ export const useChatStore = create(
 
       getUsers: async () => {
         set({ isUsersLoading: true });
+
         try {
           const res = await axiosInstance.get("/messages/users");
+
+          console.log("Users API Response:", res.data);
+
           set((state) => ({
             users: res.data,
             selectedUser:
-              state.selectedUser && res.data.some((user) => user._id === state.selectedUser._id)
+              state.selectedUser &&
+              res.data.some((user) => user._id === state.selectedUser._id)
                 ? state.selectedUser
                 : null,
           }));
         } catch (error) {
-          console.log("Error in get Users", error.message);
+          console.log(error.response);
+          console.log(error.message);
         } finally {
           set({ isUsersLoading: false });
         }
