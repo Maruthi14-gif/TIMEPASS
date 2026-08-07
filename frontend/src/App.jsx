@@ -12,6 +12,10 @@ import { Toaster } from "react-hot-toast";
 
 function App() {
   const { isSignedIn, isLoaded } = useAuth();
+  console.log("Clerk:", {
+  isLoaded,
+  isSignedIn,
+});
 
   // option 1
   // const { checkAuth, isCheckingAuth, clearAuth } = useAuthStore();
@@ -20,6 +24,9 @@ function App() {
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const checkAuth = useAuthStore((state) => state.checkAuth);
   const isCheckingAuth = useAuthStore((state) => state.isCheckingAuth);
+  console.log("Zustand:", {
+  isCheckingAuth,
+  });
 
   useEffect(() => {
     if (!isLoaded) return;
