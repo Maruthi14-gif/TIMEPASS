@@ -7,20 +7,25 @@ import { UserButton } from "@clerk/react";
 import { SearchField, Tabs } from "@heroui/react";
 import { MessageSquareIcon, UsersIcon } from "lucide-react";
 import { ConversationRow } from "./ConversationRow";
+import { buildMessagePreview, formatConversationTime } from "../../lib/utils";
 
-function mapUserForList(user, onlineUsers) {
+function mapUserForList(user, onlineUsers, currentUserId) {
+  const isOnline = onlineUsers.includes(user._id);
+
   return {
     conversationId: user._id,
     id: user._id,
     name: user.fullName,
     avatarUrl: user.profilePic,
     initials: getInitials(user.fullName),
-    isOnline: onlineUsers.includes(user._id),
+    isOnline,
+    preview: buildMessagePreview(user.lastMessage, currentUserId),
+    timeLabel: formatConversationTime(user.lastMessage?.createdAt),
     peer: {
       name: user.fullName,
       avatarUrl: user.profilePic,
       initials: getInitials(user.fullName),
-      isOnline: onlineUsers.includes(user._id),
+      isOnline,
     },
   };
 }
@@ -40,13 +45,16 @@ function ChatSidebar() {
   const setActiveConversationId = useChatStore((state) => state.setActiveConversationId);
 
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
+  const authUser = useAuthStore((state) => state.authUser);
 
   const { activeConversationId, isLargeScreen } = useSelectedConversation();
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
-  const conversationUsers = conversations.map((user) => mapUserForList(user, onlineUsers));
-  const allUsers = users.map((user) => mapUserForList(user, onlineUsers));
+  const conversationUsers = conversations.map((user) =>
+    mapUserForList(user, onlineUsers, authUser?._id),
+  );
+  const allUsers = users.map((user) => mapUserForList(user, onlineUsers, authUser?._id));
 
   const filteredConversations = normalizedSearchQuery
     ? conversationUsers.filter((conversation) =>
@@ -117,7 +125,7 @@ function ChatSidebar() {
 
         <Tabs.Panel
           id="chats"
-          className="flex-1 overflow-x-hidden overflow-y-auto outline-none"
+          className="flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto px-2 py-2 outline-none"
         >
           {filteredConversations.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted">
@@ -135,7 +143,10 @@ function ChatSidebar() {
           )}
         </Tabs.Panel>
 
-        <Tabs.Panel id="users" className="flex-1 overflow-x-hidden overflow-y-auto outline-none">
+        <Tabs.Panel
+          id="users"
+          className="flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto px-2 py-2 outline-none"
+        >
           {filteredUsers.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted">No people match your search.</p>
           ) : (
