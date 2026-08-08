@@ -1,6 +1,8 @@
 # TIMEPASS
 
-A real-time, iMessage-inspired chat application built with the MERN stack, Socket.IO, and Clerk authentication. Send text, images, and video to anyone on the platform, see who's online at a glance, and make the app your own with themes and wallpapers.
+A real-time chat app I built to understand how messaging actually works under the hood — not just the UI, but the WebSocket plumbing, the presence tracking, and the awkward parts nobody mentions in tutorials, like keeping a third-party auth provider in sync with your own database.
+
+It's modelled on iMessage: text, photos, and video, delivered instantly, with themes and wallpapers so it doesn't feel like a form.
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
@@ -8,10 +10,8 @@ A real-time, iMessage-inspired chat application built with the MERN stack, Socke
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4-010101?logo=socketdotio&logoColor=white)](https://socket.io)
 [![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)](https://clerk.com)
-[![Deployed on Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com)
-[![API on Render](https://img.shields.io/badge/API-Render-46E3B7?logo=render&logoColor=white)](https://render.com)
 
-**[Live Demo](https://timepass-delta-woad.vercel.app)** · [Report a Bug](https://github.com/Maruthi14-gif/TIMEPASS/issues) · [Request a Feature](https://github.com/Maruthi14-gif/TIMEPASS/issues)
+**[Try it live](https://timepass-delta-woad.vercel.app)** · [Report a bug](https://github.com/Maruthi14-gif/TIMEPASS/issues) · [Suggest a feature](https://github.com/Maruthi14-gif/TIMEPASS/issues)
 
 ---
 
@@ -27,121 +27,107 @@ A real-time, iMessage-inspired chat application built with the MERN stack, Socke
 
 ---
 
-## Features
+## What it does
 
-**Real-time messaging** — Messages are delivered instantly over a persistent WebSocket connection. No polling, no refresh.
-
-**Presence indicators** — A live online-users map is broadcast to every connected client, so avatars show who's available right now.
-
-**Rich media** — Share images and video up to 25 MB. Files are streamed through Multer's memory storage straight to ImageKit's CDN, so no media ever touches the app server's disk.
-
-**Managed authentication** — Sign-up, sign-in, session management, and the user profile menu are handled by Clerk. A signed webhook keeps the MongoDB user collection in sync on every `user.created`, `user.updated`, and `user.deleted` event.
-
-**Smart sidebar** — Two tabs, one for active conversations and one for all users on the platform. Conversations are ordered by most recent activity using a MongoDB aggregation pipeline, and both lists are searchable.
-
-**Personalization** — Multiple HeroUI theme presets, a light/dark toggle, thirteen wallpapers, and optional keystroke sounds, all persisted locally between sessions.
-
-**Responsive by design** — A single-pane mobile layout expands into a two-pane desktop view, driven by a `useMediaQuery` hook rather than CSS breakpoints alone.
-
----
-
-## Tech Stack
-
-### Frontend
-
-| Technology | Purpose |
-| --- | --- |
-| React 19 + Vite 8 | UI library and build tooling |
-| HeroUI + Tailwind CSS 4 | Component library and styling |
-| Zustand | Client state, with `persist` for user preferences |
-| Socket.IO Client | Real-time transport |
-| Clerk React | Authentication UI and session tokens |
-| Axios | HTTP client with a token-injecting interceptor |
-| React Router 8 | Routing |
-
-### Backend
-
-| Technology | Purpose |
-| --- | --- |
-| Node.js + Express 5 | HTTP API |
-| MongoDB + Mongoose 9 | Data persistence |
-| Socket.IO | WebSocket server and presence tracking |
-| Clerk Express | Token verification middleware |
-| Multer | Multipart upload parsing (memory storage) |
-| ImageKit | Media storage and CDN delivery |
-| Cron | Keep-alive ping to prevent cold starts |
+- **Instant delivery.** Messages arrive over a persistent WebSocket. No polling, no refresh button.
+- **Live presence.** Green dots update the moment someone opens or closes the app.
+- **Photos and video** up to 25 MB, served from a CDN rather than my own server.
+- **Two-tab sidebar** — recent conversations on one side, everyone on the platform on the other, both searchable.
+- **Themes, wallpapers, and keystroke sounds**, saved locally so your setup survives a refresh.
+- **Responsive layout** that collapses to a single pane on mobile and expands to two on desktop.
 
 ---
 
 ## Architecture
 
-```
-┌─────────────────────────┐         ┌──────────────────────────┐
-│   React SPA (Vercel)    │         │      Clerk (hosted)      │
-│                         │         │                          │
-│  Zustand · HeroUI       │◄───────►│  Sessions · User store   │
-│  Socket.IO client       │  auth   │                          │
-└───────────┬─────────────┘         └────────────┬─────────────┘
-            │                                    │
-   REST  +  │  WebSocket                         │ signed webhook
-Bearer token│                                    │ (user.created / updated / deleted)
-            ▼                                    ▼
-┌──────────────────────────────────────────────────────────────┐
-│                  Express API (Render)                        │
-│                                                              │
-│  clerkMiddleware → protectRoute → controllers                │
-│  Socket.IO server: userSocketMap { userId → socketId }       │
-└───────────┬──────────────────────────────────┬───────────────┘
-            │                                  │
-            ▼                                  ▼
-   ┌──────────────────┐              ┌────────────────────┐
-   │  MongoDB Atlas   │              │      ImageKit      │
-   │  Users, Messages │              │  Images and video  │
-   └──────────────────┘              └────────────────────┘
+Four pieces, each doing one job:
+
+```mermaid
+flowchart TB
+    subgraph browser["Browser"]
+        spa["React SPA on Vercel<br/>Zustand, Socket.IO client"]
+    end
+
+    subgraph server["Express API on Render"]
+        rest["REST routes"]
+        ws["Socket.IO server<br/>tracks who is online"]
+    end
+
+    clerk["Clerk<br/>hosted auth"]
+    mongo["MongoDB Atlas<br/>users, messages"]
+    ik["ImageKit<br/>media CDN"]
+
+    spa -->|"sign in"| clerk
+    spa -->|"HTTPS with bearer token"| rest
+    spa <-->|"WebSocket"| ws
+    clerk -->|"signed webhook"| rest
+    rest --> mongo
+    ws --> mongo
+    rest -->|"uploads"| ik
 ```
 
-**How a message travels.** The client `POST`s to `/api/messages/send/:id` with a Clerk bearer token. `protectRoute` verifies the token and resolves the Clerk ID to a MongoDB user document. If a file is attached, it is uploaded to ImageKit and the returned CDN URL is stored on the message. The message is persisted, then the server looks up the recipient's socket ID in `userSocketMap` — if they're online, a `newMessage` event is emitted directly to that socket. The sender gets the saved message back in the HTTP response.
+**Sending a message.** The client POSTs to `/api/messages/send/:id`. The server verifies the token, uploads any attachment to ImageKit, saves the message, then looks up the recipient in an in-memory `userSocketMap` and emits `newMessage` straight to their socket if they're online. The sender gets the saved message back in the HTTP response, so they never wait on a round trip.
+
+**Identity lives in two places.** Clerk owns authentication; Mongo owns everything else. A signed webhook upserts the user record on `user.created`, `user.updated`, and `user.deleted`, and `protectRoute` translates the Clerk ID on each token into a Mongo user once, at the edge. Messages only ever reference Mongo `_id`s.
+
+**The frontend and API are on different domains**, so the browser won't send Clerk's session cookie to the API. An Axios interceptor in `frontend/src/lib/axios.js` attaches the session token as a bearer header instead.
+
+Two collections, no `conversations` table — a conversation is just the messages between two people, and the sidebar list is derived with an aggregation that groups by chat partner and sorts by recency. Cheap writes, slightly heavier reads.
+
+One known limit: `userSocketMap` lives in a single process's memory, so presence doesn't survive horizontal scaling. The Socket.IO Redis adapter is first on the roadmap.
 
 ---
 
-## Project Structure
+## Tech stack, and why
+
+**React 19 + Vite** — instant HMR while developing, small bundle at the end.
+
+**Zustand over Redux** — the same global store without the ceremony. `persist` keeps theme and sound settings across reloads for free.
+
+**HeroUI + Tailwind 4** — accessible components I didn't have to build, with the accent color themeable at runtime.
+
+**Clerk** — I didn't want to store password hashes or hand-roll session expiry. The cost is that identity lives outside my database, which is exactly what the webhook above solves.
+
+**Socket.IO over raw WebSockets** — automatic reconnection and transport fallbacks, which I'd otherwise have written badly myself.
+
+**MongoDB + Mongoose** — messages are schema-light and grow fast, and the aggregation pipeline turns "conversations by recency" into one query instead of an N+1 loop.
+
+**Multer memory storage + ImageKit** — uploads stream through the server straight to a CDN and never touch disk. That matters on Render, where the filesystem is wiped on every deploy.
+
+---
+
+## Project structure
 
 ```
 TIMEPASS/
 ├── backend/
 │   └── src/
 │       ├── controllers/      # Request handlers (auth, messages)
-│       ├── lib/              # DB connection, Socket.IO, ImageKit, cron
-│       ├── middleware/       # Clerk route protection, Multer upload
-│       ├── models/           # Mongoose schemas (User, Message)
+│       ├── lib/              # DB, Socket.IO, ImageKit, keep-alive cron
+│       ├── middleware/       # protectRoute, Multer upload rules
+│       ├── models/           # Mongoose schemas
 │       ├── routes/           # Express routers
-│       ├── seeds/            # Sample user seeding script
 │       ├── webhooks/         # Clerk webhook verification
-│       └── index.js          # App entry point
+│       └── index.js          # Entry point
 ├── frontend/
 │   ├── public/               # Logo, wallpapers, keystroke sounds
 │   └── src/
-│       ├── components/       # auth/ and chat/ component trees
+│       ├── components/       # auth/ and chat/ trees
 │       ├── context/          # Theme and wallpaper providers
-│       ├── hooks/            # useMediaQuery, useKeyboardSound, etc.
-│       ├── lib/              # Axios instance with auth interceptor
+│       ├── hooks/            # useMediaQuery, useKeyboardSound, ...
+│       ├── lib/              # Axios instance with the auth interceptor
 │       ├── pages/            # AuthPage, ChatPage
-│       └── store/            # Zustand stores (auth, chat)
-└── Dockerfile                # Multi-stage build, API serves the SPA
+│       └── store/            # Zustand stores
+└── Dockerfile                # Single-container build
 ```
 
 ---
 
-## Getting Started
+## Running it locally
 
-### Prerequisites
+You'll need Node 22+, a MongoDB database, a Clerk application, and optionally an ImageKit account for media.
 
-- Node.js 22 or newer
-- A MongoDB database ([Atlas](https://www.mongodb.com/atlas) free tier works)
-- A [Clerk](https://clerk.com) application
-- An [ImageKit](https://imagekit.io) account (optional — required only for media uploads)
-
-### 1. Clone and install
+### 1. Install
 
 ```bash
 git clone https://github.com/Maruthi14-gif/TIMEPASS.git
@@ -151,7 +137,7 @@ cd backend && npm install
 cd ../frontend && npm install --legacy-peer-deps
 ```
 
-### 2. Configure the backend
+### 2. Backend environment
 
 Create `backend/.env`:
 
@@ -170,15 +156,15 @@ IMAGEKIT_PRIVATE_KEY=private_...
 
 | Variable | Required | Notes |
 | --- | :---: | --- |
-| `PORT` | Yes | Port the API listens on. Hosts like Render inject this automatically. |
-| `MONGO_URI` | Yes | MongoDB connection string. |
-| `FRONTEND_URL` | Yes | Exact origin of the client. Controls CORS **and** the Socket.IO allowed origin. No trailing slash. |
-| `NODE_ENV` | No | Set to `production` to enable the keep-alive cron job. |
-| `CLERK_SECRET_KEY` | Yes | Used to verify session tokens server-side. |
-| `CLERK_WEBHOOK_SIGNING_SECRET` | Yes | Without it the webhook returns 503 and users never sync to MongoDB. |
-| `IMAGEKIT_PRIVATE_KEY` | No | Omit to run in text-only mode; media uploads return a clear 500. |
+| `MONGO_URI` | Yes | Connection string. |
+| `FRONTEND_URL` | Yes | Exact client origin. Controls CORS **and** the Socket.IO allowed origin. No trailing slash. |
+| `CLERK_SECRET_KEY` | Yes | Verifies session tokens server-side. |
+| `CLERK_WEBHOOK_SIGNING_SECRET` | Yes | Without it the webhook returns 503 and nobody ever syncs to Mongo. |
+| `PORT` | No | Hosts like Render inject this. |
+| `NODE_ENV` | No | Set `production` to enable the keep-alive cron. |
+| `IMAGEKIT_PRIVATE_KEY` | No | Leave it out to run text-only; uploads then fail with a clear 500. |
 
-### 3. Configure the frontend
+### 3. Frontend environment
 
 Create `frontend/.env`:
 
@@ -187,70 +173,61 @@ VITE_API_URL=http://localhost:5176/api
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
-> **Note:** Vite inlines `VITE_*` variables at build time, not runtime. Changing either value requires a full dev-server restart locally, or a fresh deployment in production. `VITE_API_URL` must include the `/api` suffix and must not end in a slash.
+> Vite inlines `VITE_*` variables at **build time**, not runtime. Change either one and you need a full dev-server restart locally, or a fresh deployment in production. `VITE_API_URL` must end in `/api` with no trailing slash.
 
-### 4. Set up the Clerk webhook
+### 4. Wire up the Clerk webhook
 
-User records are created in MongoDB by webhook, not on first login — so this step is not optional. Without it, users authenticate successfully but every API call returns `404 User profile is not synced yet`.
+Skip this and nothing will work — see the sync diagram above.
 
-1. In the Clerk Dashboard, go to **Webhooks → Add Endpoint**.
-2. Point it at `https://<your-api-host>/api/webhooks/clerk`.
-3. Subscribe to `user.created`, `user.updated`, and `user.deleted`.
-4. Copy the signing secret into `CLERK_WEBHOOK_SIGNING_SECRET`.
+1. Clerk Dashboard → **Webhooks → Add Endpoint**
+2. URL: `https://<your-api-host>/api/webhooks/clerk`
+3. Subscribe to `user.created`, `user.updated`, `user.deleted`
+4. Copy the signing secret into `CLERK_WEBHOOK_SIGNING_SECRET`
 
-For local development, expose your API with a tunnel (`ngrok http 5176`) and use the tunnel URL as the endpoint.
+Locally, expose the API with `ngrok http 5176` and use the tunnel URL.
 
-### 5. Run it
+### 5. Start both halves
 
 ```bash
-# Terminal 1
-cd backend && npm run dev
-
-# Terminal 2
-cd frontend && npm run dev
+cd backend && npm run dev     # http://localhost:5176
+cd frontend && npm run dev    # http://localhost:5173
 ```
 
-The app is served at `http://localhost:5173` and the API at `http://localhost:5176`. Sign in with two different accounts in two browsers to see presence and real-time delivery in action.
+Sign in with two different accounts in two browsers to watch presence and live delivery work.
 
 ---
 
-## API Reference
+## API reference
 
-All routes are prefixed with `/api` and, except for the webhook and health check, require a Clerk session token in an `Authorization: Bearer <token>` header.
+Everything is under `/api`. All routes except the webhook and health check need `Authorization: Bearer <clerk-token>`.
 
-| Method | Endpoint | Description |
+| Method | Endpoint | What it does |
 | --- | --- | --- |
 | `GET` | `/health` | Liveness probe. Returns `{ ok: true }`. |
-| `GET` | `/api/auth/check` | Returns the authenticated user's MongoDB document. |
-| `GET` | `/api/messages/users` | All users except the caller, for the People tab. |
-| `GET` | `/api/messages/conversations` | Chat partners ordered by most recent message. |
-| `GET` | `/api/messages/:id` | Full message history with one user, oldest first. |
-| `POST` | `/api/messages/send/:id` | Send a message. JSON `{ text }`, or multipart with a `media` field. |
-| `POST` | `/api/webhooks/clerk` | Signed Clerk user-lifecycle events. Raw body, no JSON parsing. |
+| `GET` | `/api/auth/check` | The caller's Mongo user document. |
+| `GET` | `/api/messages/users` | Everyone except the caller. |
+| `GET` | `/api/messages/conversations` | Chat partners, most recent first. |
+| `GET` | `/api/messages/:id` | Full history with one user, oldest first. |
+| `POST` | `/api/messages/send/:id` | JSON `{ text }`, or multipart with a `media` field. |
+| `POST` | `/api/webhooks/clerk` | Signed user-lifecycle events. Raw body, no JSON parsing. |
 
 ### Socket events
 
 | Event | Direction | Payload |
 | --- | --- | --- |
-| `connection` | Client → Server | `userId` passed via handshake query |
-| `getOnlineUsers` | Server → Client | Array of online user IDs, broadcast on connect and disconnect |
-| `newMessage` | Server → Client | The saved message document, emitted only to the recipient's socket |
+| `connection` | Client → Server | `userId` in the handshake query |
+| `getOnlineUsers` | Server → Client | Array of online user IDs, broadcast on every connect and disconnect |
+| `newMessage` | Server → Client | The saved message, emitted only to the recipient's socket |
 
 ---
 
 ## Deployment
 
-The project deploys as a split frontend and backend, which is how the live demo runs.
+**Frontend on Vercel.** Root directory `frontend`. Add `VITE_API_URL` and `VITE_CLERK_PUBLISHABLE_KEY` *before* the first build. Live at [timepass-delta-woad.vercel.app](https://timepass-delta-woad.vercel.app).
 
-**Frontend (Vercel).** Set the root directory to `frontend`. Add `VITE_API_URL` and `VITE_CLERK_PUBLISHABLE_KEY` as environment variables *before* the first build, since Vite bakes them into the bundle. Live at [timepass-delta-woad.vercel.app](https://timepass-delta-woad.vercel.app).
+**Backend on Render.** Root directory `backend`, build `npm install`, start `npm start`. Add every backend variable above, and set `FRONTEND_URL` to the exact Vercel URL.
 
-**Backend (Render).** Set the root directory to `backend`, build command `npm install`, start command `npm start`. Add every backend variable listed above, and set `FRONTEND_URL` to the exact Vercel URL.
-
-Because the two live on different domains, the browser will not send Clerk's session cookie to the API. The Axios interceptor in `src/lib/axios.js` handles this by attaching the session token as a bearer header on every request.
-
-### Single-container alternative
-
-The included `Dockerfile` builds both halves into one image, where Express serves the compiled SPA from `public/` and the client calls `/api` on its own origin — no cross-domain concerns at all.
+**Or one container.** The `Dockerfile` builds both halves into a single image where Express serves the compiled SPA from `public/` and the client calls `/api` on its own origin — no cross-domain token juggling at all.
 
 ```bash
 docker build --build-arg VITE_CLERK_PUBLISHABLE_KEY=pk_test_... -t timepass .
@@ -261,32 +238,33 @@ docker run -p 3001:3001 --env-file backend/.env timepass
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
+Every one of these bit me at some point.
+
+| Symptom | Cause |
 | --- | --- |
-| `401 Unauthorized` on every request | The bearer token isn't reaching the API. Confirm the Axios interceptor is present and `CLERK_SECRET_KEY` is set on the server. |
-| `404 User profile is not synced yet` | The Clerk webhook isn't configured or its signing secret is wrong. |
-| User list is empty, requests 404 | `VITE_API_URL` is unset or missing `/api`, so calls hit the static host instead of the API. |
-| CORS error in the console | `FRONTEND_URL` on the server doesn't exactly match the client origin. |
-| Media upload returns 500 | `IMAGEKIT_PRIVATE_KEY` is not set. |
-| First request after idle is slow | Free-tier hosts sleep. Set `NODE_ENV=production` to enable the 14-minute keep-alive cron. |
+| `401` on every request | The bearer token isn't reaching the API. Check the Axios interceptor and `CLERK_SECRET_KEY`. |
+| `404 User profile is not synced yet` | The Clerk webhook isn't configured, or its signing secret is wrong. |
+| Empty user list, requests 404 | `VITE_API_URL` unset or missing `/api`, so calls hit the static host instead of the API. |
+| CORS error in the console | `FRONTEND_URL` doesn't exactly match the client origin. |
+| Upload returns 500 | `IMAGEKIT_PRIVATE_KEY` isn't set. |
+| First request after idle hangs | Free-tier hosts sleep. Set `NODE_ENV=production` for the 14-minute keep-alive ping. |
 
 ---
 
-## Roadmap
+## What's next
 
+- [ ] Redis adapter so Socket.IO works across multiple server instances
 - [ ] Group conversations
 - [ ] Typing indicators and read receipts
-- [ ] Message editing and deletion
+- [ ] Editing and deleting messages
 - [ ] Push notifications
 - [ ] Full-text message search
-- [ ] Migrate to production Clerk keys
+- [ ] Swap to production Clerk keys
 
 ---
 
 ## License
 
-Released under the ISC License.
-
-## Acknowledgements
+ISC.
 
 Built with [Clerk](https://clerk.com), [HeroUI](https://www.heroui.com), [ImageKit](https://imagekit.io), and [Socket.IO](https://socket.io).
